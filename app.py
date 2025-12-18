@@ -170,32 +170,56 @@ if uploaded_file is not None:
         # Diccionario para almacenar datos originales y procesados por hoja
         original_data = {}
         processed_data = {}
+        skipped_sheets = []
         
         # Procesar cada hoja
         for sheet_name in sheet_names:
-            with st.spinner(f"Procesando hoja '{sheet_name}'..."):
-                # Leer desde la columna B (índice 1) y desde la fila 2
-                df = pd.read_excel(uploaded_file, sheet_name=sheet_name, header=1, usecols="B:E")
-                
-                # Eliminar filas vacías
-                df = df.dropna(how='all')
-                
-                # Guardar datos originales
-                original_data[sheet_name] = df
-                
-                # Procesar los datos
-                result_df = process_excel_data(df)
-                processed_data[sheet_name] = result_df
+            try:
+                with st.spinner(f"Procesando hoja '{sheet_name}'..."):
+                    # Leer desde la columna B (índice 1) y desde la fila 2
+                    df = pd.read_excel(uploaded_file, sheet_name=sheet_name, header=1, usecols="B:E")
+                    
+                    # Eliminar filas vacías
+                    df = df.dropna(how='all')
+                    
+                    # Validar que la hoja tenga las columnas esperadas
+                    expected_columns = 4  # Clasificación, Nº INS, Ingrediente, Dosis máxima
+                    if df.empty or len(df.columns) != expected_columns:
+                        skipped_sheets.append(sheet_name)
+                        continue
+                    
+                    # Guardar datos originales
+                    original_data[sheet_name] = df
+                    
+                    # Procesar los datos
+                    result_df = process_excel_data(df)
+                    
+                    # Solo guardar si hay resultados procesados
+                    if not result_df.empty:
+                        processed_data[sheet_name] = result_df
+                    else:
+                        skipped_sheets.append(sheet_name)
+                        
+            except Exception as e:
+                skipped_sheets.append(sheet_name)
+                continue
         
-        st.success(f"✓ Todas las hojas procesadas exitosamente")
+        # Mostrar resultado del procesamiento
+        if processed_data:
+            st.success(f"✓ {len(processed_data)} hoja(s) procesada(s) exitosamente")
+            if skipped_sheets:
+                st.warning(f"⚠️ {len(skipped_sheets)} hoja(s) omitida(s) (sin datos válidos): {', '.join(skipped_sheets)}")
+        else:
+            st.error("❌ No se encontraron hojas con datos válidos para procesar")
+            st.stop()
         
-        # Crear tabs para cada hoja
+        # Crear tabs para cada hoja procesada
         st.markdown("---")
         st.subheader("Resultados por Hoja")
         
-        tabs = st.tabs(sheet_names)
+        tabs = st.tabs(list(processed_data.keys()))
         
-        for idx, sheet_name in enumerate(sheet_names):
+        for idx, sheet_name in enumerate(processed_data.keys()):
             with tabs[idx]:
                 st.markdown(f"### Hoja: {sheet_name}")
                 
