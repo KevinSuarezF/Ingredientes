@@ -104,6 +104,17 @@ def convert_df_to_excel(df):
     output.seek(0)
     return output
 
+def convert_multiple_sheets_to_excel(sheets_dict):
+    """Convierte múltiples DataFrames a Excel con múltiples hojas"""
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        for sheet_name, df in sheets_dict.items():
+            # Limitar el nombre de la hoja a 31 caracteres (límite de Excel)
+            safe_sheet_name = sheet_name[:31]
+            df.to_excel(writer, index=False, sheet_name=safe_sheet_name)
+    output.seek(0)
+    return output
+
 # Configuración de la página
 st.set_page_config(
     page_title="Procesador de Ingredientes",
@@ -116,7 +127,7 @@ st.title("Procesador de Datos de Ingredientes")
 st.markdown("---")
 
 # Instrucciones
-with st.expander("Instrucciones de uso"):
+with st.expander("📖 Instrucciones de uso"):
     st.markdown("""
     ### Formato del archivo Excel:
     - Los datos deben comenzar desde la celda **B2** (incluyendo el título)
@@ -125,12 +136,18 @@ with st.expander("Instrucciones de uso"):
         2. **Nº INS**
         3. **Ingrediente**
         4. **Dosis máxima**
+    - **Soporta múltiples hojas**: La aplicación procesará automáticamente todas las hojas del archivo
     
     ### Procesamiento:
     - Agrupa los ingredientes por **Clasificación** y **Nº INS**
     - Calcula la dosis mínima y máxima para cada grupo
     - Si no hay valores numéricos, muestra "BPF"
     - Organiza los resultados por clasificación
+    - **Cada hoja se procesa independientemente** y se muestra en pestañas separadas
+    
+    ### Descarga:
+    - El archivo Excel generado contendrá **todas las hojas procesadas**
+    - Cada hoja del archivo original se conserva como hoja separada en el resultado
     """)
 
 st.markdown("---")
@@ -144,46 +161,82 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file is not None:
     try:
-        # Leer el archivo Excel
-        # Leer desde la columna B (índice 1) y desde la fila 2 (índice 1, ya que Python es 0-indexed)
-        df = pd.read_excel(uploaded_file, header=1, usecols="B:E")
+        # Leer todas las hojas del archivo Excel
+        excel_file = pd.ExcelFile(uploaded_file)
+        sheet_names = excel_file.sheet_names
         
-        # Eliminar filas vacías
-        df = df.dropna(how='all')
+        st.info(f"Se encontraron {len(sheet_names)} hoja(s): {', '.join(sheet_names)}")
         
-        # Mostrar vista previa de datos originales
-        st.subheader("Vista previa de datos originales")
-        st.dataframe(df, use_container_width=True)
+        # Diccionario para almacenar datos originales y procesados por hoja
+        original_data = {}
+        processed_data = {}
         
-        # Procesar los datos
-        with st.spinner("Procesando datos..."):
-            result_df = process_excel_data(df)
+        # Procesar cada hoja
+        for sheet_name in sheet_names:
+            with st.spinner(f"Procesando hoja '{sheet_name}'..."):
+                # Leer desde la columna B (índice 1) y desde la fila 2
+                df = pd.read_excel(uploaded_file, sheet_name=sheet_name, header=1, usecols="B:E")
+                
+                # Eliminar filas vacías
+                df = df.dropna(how='all')
+                
+                # Guardar datos originales
+                original_data[sheet_name] = df
+                
+                # Procesar los datos
+                result_df = process_excel_data(df)
+                processed_data[sheet_name] = result_df
         
-        # Mostrar resultados procesados
-        st.success("Datos procesados exitosamente")
-        st.subheader("Datos Procesados")
-        st.dataframe(result_df, use_container_width=True)
+        st.success(f"✓ Todas las hojas procesadas exitosamente")
         
-        # Mostrar estadísticas
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total de registros originales", len(df))
-        with col2:
-            st.metric("Total de registros procesados", len(result_df))
-        with col3:
-            st.metric("Clasificaciones únicas", result_df['Clasificación'].nunique())
-        
-        # Botón de descarga
+        # Crear tabs para cada hoja
         st.markdown("---")
-        excel_data = convert_df_to_excel(result_df)
+        st.subheader("Resultados por Hoja")
         
-        st.download_button(
-            label="Descargar Excel Procesado",
-            data=excel_data,
-            file_name="datos_procesados.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
+        tabs = st.tabs(sheet_names)
+        
+        for idx, sheet_name in enumerate(sheet_names):
+            with tabs[idx]:
+                st.markdown(f"### Hoja: {sheet_name}")
+                
+                # Mostrar datos originales
+                with st.expander("📄 Ver datos originales", expanded=False):
+                    st.dataframe(original_data[sheet_name], use_container_width=True)
+                
+                # Mostrar datos procesados
+                st.markdown("**Datos Procesados:**")
+                st.dataframe(processed_data[sheet_name], use_container_width=True)
+                
+                # Estadísticas
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Registros originales", len(original_data[sheet_name]))
+                with col2:
+                    st.metric("Registros procesados", len(processed_data[sheet_name]))
+                with col3:
+                    st.metric("Clasificaciones únicas", processed_data[sheet_name]['Clasificación'].nunique())
+        
+        # Botón de descarga con todas las hojas procesadas
+        st.markdown("---")
+        st.subheader("Descargar Resultados")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            excel_data = convert_multiple_sheets_to_excel(processed_data)
+            st.download_button(
+                label="📥 Descargar Excel Procesado (Todas las hojas)",
+                data=excel_data,
+                file_name="datos_procesados.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        
+        with col2:
+            # Mostrar resumen general
+            total_original = sum(len(df) for df in original_data.values())
+            total_procesado = sum(len(df) for df in processed_data.values())
+            st.metric("Total registros procesados", f"{total_procesado} de {total_original}")
         
     except Exception as e:
         st.error(f"Error al procesar el archivo: {str(e)}")

@@ -5,9 +5,11 @@ Aplicación web desarrollada con Streamlit para procesar archivos Excel con info
 ## Características
 
 - **Carga de archivos Excel**: Sube archivos .xlsx o .xls
+- **📊 Soporte para múltiples hojas**: Procesa automáticamente todas las hojas del Excel
 - **Procesamiento automático**: Agrupa datos por Clasificación y Nº INS
 - **Cálculo de dosis**: Determina dosis mínima y máxima automáticamente
-- **Descarga de resultados**: Exporta los datos procesados a Excel
+- **Visualización por pestañas**: Cada hoja se muestra en su propia pestaña
+- **Descarga de resultados**: Exporta los datos procesados a Excel con todas las hojas
 - **Interfaz intuitiva**: Diseño limpio y fácil de usar
 
 ## Formato de Datos
@@ -18,6 +20,14 @@ El archivo Excel debe contener datos desde la celda **B2** (incluyendo títulos)
 2. **Nº INS**: Número de Sistema Internacional de Numeración (ej. "331(iii)")
 3. **Ingrediente**: Nombre del ingrediente (ej. "Citrato trisódico")
 4. **Dosis máxima**: Dosis máxima permitida (ej. "1500 mg/kg" o "BPF")
+
+### ✨ Múltiples Hojas
+
+La aplicación procesa automáticamente **todas las hojas** del archivo Excel:
+- Cada hoja se procesa de manera independiente
+- Los resultados se visualizan en pestañas separadas
+- El archivo descargado incluye todas las hojas procesadas
+- No se requiere configuración adicional
 
 ### Ejemplo de Datos
 
@@ -59,12 +69,17 @@ streamlit run app.py
 
 La aplicación realiza las siguientes operaciones:
 
-1. **Agrupación**: Agrupa los datos por Clasificación y Nº INS
-2. **Cálculo de dosis**:
+1. **Lectura de hojas**: Lee automáticamente todas las hojas del archivo Excel
+2. **Agrupación**: Agrupa los datos por Clasificación y Nº INS en cada hoja
+3. **Cálculo de dosis**:
    - Si hay valores numéricos, calcula el mínimo y máximo
    - Si no hay valores numéricos o solo hay "BPF", muestra "BPF"
-3. **Organización**: Ordena los resultados por clasificación
-4. **Exportación**: Genera un archivo Excel con las columnas:
+4. **Visualización**: Muestra cada hoja en su propia pestaña con:
+   - Datos originales (colapsables)
+   - Datos procesados
+   - Estadísticas (registros originales, procesados y clasificaciones únicas)
+5. **Organización**: Ordena los resultados por clasificación
+6. **Exportación**: Genera un archivo Excel con múltiples hojas, cada una con las columnas:
    - Clasificación
    - Nº INS
    - Ingrediente
