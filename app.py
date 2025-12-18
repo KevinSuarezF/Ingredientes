@@ -153,7 +153,7 @@ if uploaded_file is not None:
         
         # Mostrar vista previa de datos originales
         st.subheader("Vista previa de datos originales")
-        st.dataframe(df, width='stretch')
+        st.dataframe(df, use_container_width=True)
         
         # Procesar los datos
         with st.spinner("Procesando datos..."):
@@ -162,7 +162,7 @@ if uploaded_file is not None:
         # Mostrar resultados procesados
         st.success("Datos procesados exitosamente")
         st.subheader("Datos Procesados")
-        st.dataframe(result_df, width='stretch')
+        st.dataframe(result_df, use_container_width=True)
         
         # Mostrar estadísticas
         col1, col2, col3 = st.columns(3)
@@ -182,7 +182,7 @@ if uploaded_file is not None:
             data=excel_data,
             file_name="datos_procesados.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            width='stretch'
+            use_container_width=True
         )
         
     except Exception as e:
@@ -206,7 +206,7 @@ else:
         'Ingrediente': ['Citrato trisódico', 'Fosfatos (diversas sales fosfatadas)', 'Nitrógeno', 'Ácido ascórbico, L-'],
         'Dosis máxima': ['BPF', '1500 mg/kg', 'BPF', 'BPF']
     })
-    st.dataframe(ejemplo_df, width='stretch')
+    st.dataframe(ejemplo_df, use_container_width=True)
 
 # Footer
 st.markdown("---")
